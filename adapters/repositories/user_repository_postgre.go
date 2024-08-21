@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"meeting_service/domain/entities"
 	"time"
 )
@@ -109,21 +110,22 @@ func (repository *UserRepositoryPostgre) CheckInteractionStatus(ctx context.Cont
 
 	query := "SELECT status FROM interactions WHERE (from_id = $1 and to_id = $2) or (to_id = $1 and from_id = $2) ORDER BY created_at DESC"
 
-	rows, err := repository.db.QueryContext(ctx, query)
-
+	rows, err := repository.db.QueryContext(ctx, query, user1, user2)
 	if err != nil {
+		log.Printf("Error in checkinteraction repo psql %#v", err)
 		return nil, err
 	}
 
 	for rows.Next() {
 		var status uint8
-		if err := rows.Scan(&user1, &user2); err != nil {
+		if err := rows.Scan(&status); err != nil {
 			return nil, err
 		}
 		statuses = append(statuses, status)
 	}
 
 	if err = rows.Err(); err != nil {
+		log.Printf("Error in checkinteraction repo psql %#v", err)
 		return nil, err
 	}
 
@@ -155,6 +157,17 @@ func (repository *UserRepositoryPostgre) Receive(ctx context.Context, fromUser s
 func (repository *UserRepositoryPostgre) Decline(ctx context.Context, fromUser string, toUser string) error {
 	query := "INSERT into interactions(from_id, to_id, status) VALUES($1, $2, $3)"
 	_, err := repository.db.Exec(query, fromUser, toUser, 3)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (repository *UserRepositoryPostgre) StoreMeet(ctx context.Context, fromUser string, toUser string) error {
+	query := "INSERT INTO meets(user_1, user_2) VALUES($1, $2)"
+	_, err := repository.db.Exec(query, fromUser, toUser)
 
 	if err != nil {
 		return err

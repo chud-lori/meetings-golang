@@ -11,193 +11,210 @@ import (
 )
 
 type UserServiceImpl struct {
-    ports.UserRepository
+	ports.UserRepository
 }
 
 // provider or constructor
 func NewUserService(userRepository ports.UserRepository) *UserServiceImpl {
-    return &UserServiceImpl{
-        UserRepository: userRepository,
-    }
+	return &UserServiceImpl{
+		UserRepository: userRepository,
+	}
 }
 
 func (service *UserServiceImpl) Save(ctx context.Context, request *transport.UserRequest) (*transport.UserResponse, error) {
-    user := entities.User{
-        Id: "",
-        Email: request.Email,
-        Created_at: time.Now(),
-    }
-    user_result, error := service.UserRepository.Save(ctx, &user)
+	user := entities.User{
+		Id:         "",
+		Email:      request.Email,
+		Created_at: time.Now(),
+	}
+	user_result, error := service.UserRepository.Save(ctx, &user)
 
-    if error != nil {
+	if error != nil {
 
-       panic(error)
-    }
+		panic(error)
+	}
 
-    user_response := &transport.UserResponse{
-        Id: user_result.Id,
-        Email: user_result.Email,
-        Created_at: user_result.Created_at,
-    }
+	user_response := &transport.UserResponse{
+		Id:         user_result.Id,
+		Email:      user_result.Email,
+		Created_at: user_result.Created_at,
+	}
 
-    return user_response, nil
+	return user_response, nil
 }
 
 func (service *UserServiceImpl) Update(ctx context.Context, request *transport.UserRequest) (*transport.UserResponse, error) {
-    user := entities.User{
-        Id: "",
-        Email: request.Email,
-        Created_at: time.Now(),
-    }
+	user := entities.User{
+		Id:         "",
+		Email:      request.Email,
+		Created_at: time.Now(),
+	}
 
-    user_result, error := service.UserRepository.Update(ctx, &user)
-    if error != nil {
-        panic(error)
-    }
+	user_result, error := service.UserRepository.Update(ctx, &user)
+	if error != nil {
+		panic(error)
+	}
 
-    user_response := &transport.UserResponse{
-        Id: user_result.Id,
-        Email: user_result.Email,
-        Created_at: user_result.Created_at,
-    }
+	user_response := &transport.UserResponse{
+		Id:         user_result.Id,
+		Email:      user_result.Email,
+		Created_at: user_result.Created_at,
+	}
 
-    return user_response, nil
+	return user_response, nil
 }
 
 func (service *UserServiceImpl) Delete(ctx context.Context, id string) error {
 
-    err := service.UserRepository.Delete(ctx, id)
+	err := service.UserRepository.Delete(ctx, id)
 
-    if err != nil {
-        return err
-    }
+	if err != nil {
+		return err
+	}
 
-    return nil
+	return nil
 }
 
-
 func (service *UserServiceImpl) FindById(ctx context.Context, id string) (*transport.UserResponse, error) {
-    user := entities.User{}
+	user := entities.User{}
 
-    user_result, err := service.UserRepository.FindById(ctx, id)
+	user_result, err := service.UserRepository.FindById(ctx, id)
 
-    user.Id = user_result.Id
-    user.Email = user_result.Email
-    user.Created_at = user_result.Created_at
+	user.Id = user_result.Id
+	user.Email = user_result.Email
+	user.Created_at = user_result.Created_at
 
-    if err != nil {
-        return nil, err
-    }
+	if err != nil {
+		return nil, err
+	}
 
-    user_response := &transport.UserResponse{
-        Id: user_result.Id,
-        Email: user_result.Email,
-        Created_at: user_result.Created_at,
-    }
+	user_response := &transport.UserResponse{
+		Id:         user_result.Id,
+		Email:      user_result.Email,
+		Created_at: user_result.Created_at,
+	}
 
-    return user_response, nil
+	return user_response, nil
 }
 
 func (service *UserServiceImpl) FindAll(ctx context.Context) ([]*transport.UserResponse, error) {
 
-    users_result, err := service.UserRepository.FindAll(ctx)
+	users_result, err := service.UserRepository.FindAll(ctx)
 
-    if err != nil {
-        return nil, err
-    }
+	if err != nil {
+		return nil, err
+	}
 
-    //var users_response []transport.UserResponse
-    users_response := make([]*transport.UserResponse, len(users_result))
+	//var users_response []transport.UserResponse
+	users_response := make([]*transport.UserResponse, len(users_result))
 
-    for i, user := range users_result {
-        users_response[i] = &transport.UserResponse{
-            Id: user.Id,
-            Email: user.Email,
-            Created_at: user.Created_at,
-        }
-    }
+	for i, user := range users_result {
+		users_response[i] = &transport.UserResponse{
+			Id:         user.Id,
+			Email:      user.Email,
+			Created_at: user.Created_at,
+		}
+	}
 
-    return users_response, nil
+	return users_response, nil
 }
 
 type UserEngageServiceImpl struct {
-    ports.UserEngageRepository
-    ports.UserRepository
+	ports.UserEngageRepository
+	ports.UserRepository
 }
 
 // provider or constructor
-func NewUserEngageService(userEngageRepository ports.UserEngageRepository, userRepository ports.UserRepository) *UserEngageServiceImpl{
-    return &UserEngageServiceImpl{
-        UserEngageRepository: userEngageRepository,
-        UserRepository: userRepository,
-    }
+func NewUserEngageService(userEngageRepository ports.UserEngageRepository, userRepository ports.UserRepository) *UserEngageServiceImpl {
+	return &UserEngageServiceImpl{
+		UserEngageRepository: userEngageRepository,
+		UserRepository:       userRepository,
+	}
 }
 
 func (service *UserEngageServiceImpl) CheckInteractionStatus(ctx context.Context, request *transport.UserEngageRequest) (*transport.UserEngageResponse, error) {
 	status, err := service.UserEngageRepository.CheckInteractionStatus(ctx, request.FromUser, request.ToUser)
 
 	if len(status) == 0 {
-		return nil, fmt.Error("Status not found")
+		return nil, fmt.Errorf("Status not found")
 	}
-    userResponse := &transport.UserEngageResponse{Status: status[0]}
+	userResponse := &transport.UserEngageResponse{Status: status[0]}
 
-    if err != nil {
-        return nil, err
-    }
+	if err != nil {
+		return nil, err
+	}
 
-    return userResponse, nil
+	return userResponse, nil
 }
 
 func (service *UserEngageServiceImpl) RequestAndNotify(ctx context.Context, request *transport.UserEngageRequest) error {
-    err := service.UserEngageRepository.Request(ctx, request.FromUser, request.ToUser)
+	statuses, err := service.UserEngageRepository.CheckInteractionStatus(ctx, request.FromUser, request.ToUser)
 
-    if err != nil {
-        return err
-    }
+	if len(statuses) > 0 && statuses[0] == 1 {
+		return fmt.Errorf("Failed because previous request not proceed")
+	}
+	err = service.UserEngageRepository.Request(ctx, request.FromUser, request.ToUser)
 
-    user, err := service.UserRepository.FindById(ctx, request.ToUser)
+	if err != nil {
+		return err
+	}
 
-    if err != nil {
-        return err
-    }
+	user, err := service.UserRepository.FindById(ctx, request.ToUser)
 
-    go grpc_service.SendGrpcMail(user.Email, fmt.Sprintf("Meeting request from %s", user.Email))
+	if err != nil {
+		return err
+	}
 
-    return nil
+	go grpc_service.SendGrpcMail(user.Email, fmt.Sprintf("Meeting request from %s", user.Email))
+
+	return nil
 }
 
 func (service *UserEngageServiceImpl) ReceiveAndNotify(ctx context.Context, request *transport.UserEngageRequest) error {
-    err := service.UserEngageRepository.Receive(ctx, request.FromUser, request.ToUser)
+	statuses, err := service.UserEngageRepository.CheckInteractionStatus(ctx, request.FromUser, request.ToUser)
+	if len(statuses) > 0 && statuses[0] != 1 {
+		return fmt.Errorf("Failed no request detected")
+	}
+	err = service.UserEngageRepository.Receive(ctx, request.FromUser, request.ToUser)
+	err = service.UserEngageRepository.StoreMeet(ctx, request.FromUser, request.ToUser)
 
-    if err != nil {
-        return err
-    }
+	if err != nil {
+		return err
+	}
 
-    user, err := service.UserRepository.FindById(ctx, request.ToUser)
+	user1, err := service.UserRepository.FindById(ctx, request.ToUser)
+	user2, err := service.UserRepository.FindById(ctx, request.FromUser)
 
-    if err != nil {
-        return err
-    }
+	if err != nil {
+		return err
+	}
 
-    go grpc_service.SendGrpcMail(user.Email, fmt.Sprintf("Meeting accept from %s", user.Email))
+	go grpc_service.SendGrpcMail(fmt.Sprintf("%s,%s", user1.Email, user2.Email), fmt.Sprintf("Meeting set up between %s and %s", user1.Email, user2.Email))
 
-    return nil
+	return nil
 }
 
 func (service *UserEngageServiceImpl) DeclineAndNotify(ctx context.Context, request *transport.UserEngageRequest) error {
-    err := service.UserEngageRepository.Decline(ctx, request.FromUser, request.ToUser)
+	statuses, err := service.UserEngageRepository.CheckInteractionStatus(ctx, request.FromUser, request.ToUser)
+	// log.Printf("Status %#v\n", statuses)
+	// return nil
+	if len(statuses) > 0 && statuses[0] != 1 {
+		return fmt.Errorf("Failed no request detected")
+	}
 
-    if err != nil {
-        return err
-    }
+	err = service.UserEngageRepository.Decline(ctx, request.FromUser, request.ToUser)
 
-    user, err := service.UserRepository.FindById(ctx, request.ToUser)
+	if err != nil {
+		return err
+	}
 
-    if err != nil {
-        return err
-    }
+	user, err := service.UserRepository.FindById(ctx, request.ToUser)
 
-    go grpc_service.SendGrpcMail(user.Email, fmt.Sprintf("Meeting request decline from %s", user.Email))
+	if err != nil {
+		return err
+	}
 
-    return nil
+	go grpc_service.SendGrpcMail(user.Email, fmt.Sprintf("Meeting request decline from %s", user.Email))
+
+	return nil
 }

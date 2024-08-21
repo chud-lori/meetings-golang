@@ -42,7 +42,7 @@ func (lrw *loggingTraffic) WriteHeader(code int) {
 	lrw.ResponseWriter.WriteHeader(code)
 }
 
-func TrafficMiddleware(next http.Handler) http.Handler {
+func LogTrafficMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
@@ -64,14 +64,6 @@ func TrafficMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func Chain(f http.HandlerFunc, middlewares ...Middleware) http.HandlerFunc {
-	for _, m := range middlewares {
-		f = m(f)
-	}
-
-	return f
-}
-
 func main() {
 	postgredb := infrastructure.NewPostgreDB()
 	defer postgredb.Close()
@@ -89,14 +81,7 @@ func main() {
 
 	var handler http.Handler = router
 	handler = APIKeyMiddleware(handler)
-	handler = TrafficMiddleware(handler)
-
-	//middlewareChain := []Middleware{
-	//    APIKeyMiddleware,
-	//    TrafficMiddleware,
-	//}
-
-	//wrappedRouter := Chain(router.ServeHTTP, middlewareChain...)
+	handler = LogTrafficMiddleware(handler)
 
 	server := http.Server{
 		Addr:    "localhost:1234",
@@ -107,4 +92,5 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	log.Println("App running")
 }
