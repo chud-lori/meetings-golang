@@ -10,6 +10,7 @@ import (
 	"meeting_service/infrastructure"
 	"net/http"
 	"time"
+    "github.com/joho/godotenv"
 )
 
 type Middleware func(http.HandlerFunc) http.HandlerFunc
@@ -66,6 +67,11 @@ func LogTrafficMiddleware(next http.Handler) http.Handler {
 }
 
 func main() {
+    err := godotenv.Load()
+    if err != nil {
+        log.Fatal("Failed load keys")
+    }
+
 	postgredb := infrastructure.NewPostgreDB()
 	defer postgredb.Close()
 	userRepository, _ := repositories.NewUserRepositoryPostgre(postgredb)
@@ -87,14 +93,15 @@ func main() {
     const PORT = 1234
 
 	server := http.Server{
-		Addr:    fmt.Sprintf("localhost:%d", PORT),
+		Addr:    fmt.Sprintf(":%d", PORT),
 		Handler: handler,
 	}
 
 	log.Println("App running on port", PORT)
 
-	err := server.ListenAndServe()
+	err = server.ListenAndServe()
 	if err != nil {
 		panic(err)
 	}
 }
+

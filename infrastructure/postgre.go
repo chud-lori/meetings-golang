@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
+    "os"
 
     _ "github.com/lib/pq"
 )
@@ -11,14 +12,14 @@ import (
 func NewPostgreDB() *sql.DB {
 
     const (
-        host = "localhost"
+    //    host = os.Getenv("PSQL_HOST")
         port = 5432
-        user = "postgres"
-        password = "root"
+    //    user = ""
+    //    password = ""
         dbname = "jub_dup"
     )
 
-    psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
+    psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", os.Getenv("PSQL_HOST"), port, os.Getenv("PSQL_USER"), os.Getenv("PSQL_PASSWORD"), dbname)
     db, err := sql.Open("postgres", psqlInfo)
 
     if err != nil {
