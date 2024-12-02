@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"meeting_service/adapters/controllers"
 	"meeting_service/adapters/repositories"
@@ -49,6 +50,7 @@ func LogTrafficMiddleware(next http.Handler) http.Handler {
 		lrw := NewLoggingTraffic(w)
 
 		// call the next handler
+        next.ServeHTTP(lrw, r)
 
 		duration := time.Since(start)
 
@@ -60,7 +62,6 @@ func LogTrafficMiddleware(next http.Handler) http.Handler {
 			lrw.statusCode,
 		)
 
-		next.ServeHTTP(w, r)
 	})
 }
 
@@ -83,14 +84,17 @@ func main() {
 	handler = APIKeyMiddleware(handler)
 	handler = LogTrafficMiddleware(handler)
 
+    const PORT = 1234
+
 	server := http.Server{
-		Addr:    "localhost:1234",
+		Addr:    fmt.Sprintf("localhost:%d", PORT),
 		Handler: handler,
 	}
+
+	log.Println("App running on port", PORT)
 
 	err := server.ListenAndServe()
 	if err != nil {
 		panic(err)
 	}
-	log.Println("App running")
 }

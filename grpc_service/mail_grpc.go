@@ -39,6 +39,6 @@ func SendGrpcMail(email string, message string) {
 			log.Printf("Unexpected error: %v", err)
 		}
 	} else {
-		log.Printf("Greeting: %s", r.GetMessage())
+		log.Printf("GRPC Success: %s", r.GetMessage())
 	}
 }

@@ -2,11 +2,14 @@ package services
 
 import (
 	"context"
+	"math/rand"
 	"fmt"
 	"meeting_service/adapters/transport"
 	"meeting_service/domain/entities"
 	"meeting_service/domain/ports"
 	"meeting_service/grpc_service"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -21,10 +24,35 @@ func NewUserService(userRepository ports.UserRepository) *UserServiceImpl {
 	}
 }
 
+func generatePasscode() string {
+    // get current ms
+    curMs := time.Now().Nanosecond() / 1000
+
+    // convert ms to str and get first 4 char
+    msStr := strconv.Itoa(curMs)[:4]
+
+    // generate random char between A and Z
+    var alphb []int
+    for i := 0; i < 4; i++ {
+        alphb = append(alphb, rand.Intn(26)+65)
+    }
+
+    // Convert ascii values to character and join them
+    var alphChar []string
+    for _, a := range alphb {
+        alphChar = append(alphChar, string(rune(a)))
+    }
+    alphStr := strings.Join(alphChar, "")
+
+    // combine alphabet string and ms string
+    return alphStr + msStr
+}
+
 func (service *UserServiceImpl) Save(ctx context.Context, request *transport.UserRequest) (*transport.UserResponse, error) {
 	user := entities.User{
 		Id:         "",
 		Email:      request.Email,
+        Passcode: generatePasscode(),
 		Created_at: time.Now(),
 	}
 	user_result, error := service.UserRepository.Save(ctx, &user)
@@ -160,12 +188,13 @@ func (service *UserEngageServiceImpl) RequestAndNotify(ctx context.Context, requ
 	}
 
 	user, err := service.UserRepository.FindById(ctx, request.ToUser)
+    fromUser, err := service.UserRepository.FindById(ctx, request.FromUser)
 
 	if err != nil {
 		return err
 	}
 
-	go grpc_service.SendGrpcMail(user.Email, fmt.Sprintf("Meeting request from %s", user.Email))
+	go grpc_service.SendGrpcMail(user.Email, fmt.Sprintf("Meeting request from %s", fromUser.Email))
 
 	return nil
 }
