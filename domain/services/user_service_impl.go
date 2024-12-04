@@ -2,25 +2,30 @@ package services
 
 import (
 	"context"
-	"math/rand"
 	"fmt"
+	"math/rand"
 	"meeting_service/adapters/transport"
 	"meeting_service/domain/entities"
 	"meeting_service/domain/ports"
 	"meeting_service/grpc_service"
+	"meeting_service/pkg/logger"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 type UserServiceImpl struct {
 	ports.UserRepository
+    logger *logrus.Entry
 }
 
 // provider or constructor
-func NewUserService(userRepository ports.UserRepository) *UserServiceImpl {
+func NewUserService(userRepository ports.UserRepository, ctx context.Context) *UserServiceImpl {
 	return &UserServiceImpl{
 		UserRepository: userRepository,
+        logger: logger.InitiateLogger(ctx),
 	}
 }
 
@@ -103,10 +108,10 @@ func (service *UserServiceImpl) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-func (service *UserServiceImpl) FindById(ctx context.Context, id string) (*transport.UserResponse, error) {
+func (s *UserServiceImpl) FindById(ctx context.Context, id string) (*transport.UserResponse, error) {
 	user := entities.User{}
 
-	user_result, err := service.UserRepository.FindById(ctx, id)
+	user_result, err := s.UserRepository.FindById(ctx, id)
 
 	user.Id = user_result.Id
 	user.Email = user_result.Email

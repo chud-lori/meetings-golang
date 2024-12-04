@@ -1,25 +1,34 @@
 package main
 
 import (
+	//"context"
+	"context"
 	"fmt"
-	"log"
+	"os"
+
+	//"log"
+	//"math/rand"
 	"meeting_service/adapters/controllers"
 	"meeting_service/adapters/repositories"
 	"meeting_service/adapters/web"
 	"meeting_service/domain/services"
 	"meeting_service/infrastructure"
+	"meeting_service/pkg/logger"
 	"net/http"
-	"time"
-    "github.com/joho/godotenv"
+
+	"github.com/google/uuid"
+	"github.com/joho/godotenv"
 )
 
-type Middleware func(http.HandlerFunc) http.HandlerFunc
+//type Middleware func(http.HandlerFunc) http.HandlerFunc
+
 
 func APIKeyMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		apiKey := r.Header.Get("x-api-key")
 		if apiKey != "secret-api-key" {
-			log.Println("unahothrized bruh")
+            log := logger.InitiateLogger(r.Context())
+			log.Warn("unahothrized bruh")
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -27,56 +36,23 @@ func APIKeyMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-type loggingTraffic struct {
-	http.ResponseWriter
-	statusCode int
-}
-
-func NewLoggingTraffic(w http.ResponseWriter) *loggingTraffic {
-	return &loggingTraffic{
-		ResponseWriter: w,
-		statusCode:     http.StatusOK,
-	}
-}
-
-func (lrw *loggingTraffic) WriteHeader(code int) {
-	lrw.statusCode = code
-	lrw.ResponseWriter.WriteHeader(code)
-}
-
-func LogTrafficMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-
-		lrw := NewLoggingTraffic(w)
-
-		// call the next handler
-        next.ServeHTTP(lrw, r)
-
-		duration := time.Since(start)
-
-		log.Printf(
-			"Method %s | Path %s | Duration: %v | Status: %d",
-			r.Method,
-			r.URL.Path,
-			duration,
-			lrw.statusCode,
-		)
-
-	})
-}
-
 func main() {
+
+    ctx := context.WithValue(context.Background(), "RequestID", uuid.New().String())
+    logger.Init(ctx)
+
     err := godotenv.Load()
     if err != nil {
-        log.Fatal("Failed load keys")
+        logger.Log.Fatal("Failed load keys")
     }
 
 	postgredb := infrastructure.NewPostgreDB()
 	defer postgredb.Close()
-	userRepository, _ := repositories.NewUserRepositoryPostgre(postgredb)
-	userService := services.NewUserService(userRepository)
-	userController := controllers.NewUserController(userService)
+
+
+	userRepository, _ := repositories.NewUserRepositoryPostgre(postgredb, ctx)
+	userService := services.NewUserService(userRepository, ctx)
+	userController := controllers.NewUserController(userService, ctx)
 
 	userEngageService := services.NewUserEngageService(userRepository, userRepository)
 	userEngageController := controllers.NewUserEngageController(userEngageService)
@@ -87,17 +63,15 @@ func main() {
 	web.UserEngageRouter(userEngageController, router)
 
 	var handler http.Handler = router
+    handler = logger.LogTrafficMiddleware(handler, ctx)
 	handler = APIKeyMiddleware(handler)
-	handler = LogTrafficMiddleware(handler)
-
-    const PORT = 1234
 
 	server := http.Server{
-		Addr:    fmt.Sprintf(":%d", PORT),
+		Addr:    fmt.Sprintf(":%s", os.Getenv("APP_PORT")),
 		Handler: handler,
 	}
 
-	log.Println("App running on port", PORT)
+	logger.Log.Info("App running on port ", os.Getenv("APP_PORT"))
 
 	err = server.ListenAndServe()
 	if err != nil {

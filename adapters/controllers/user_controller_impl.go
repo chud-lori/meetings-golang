@@ -1,19 +1,24 @@
 package controllers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"meeting_service/adapters/transport"
 	"meeting_service/domain/ports"
+	"meeting_service/pkg/logger"
 	"net/http"
+
+	"github.com/sirupsen/logrus"
 )
 
 type UserController struct {
     ports.UserService
+    logger *logrus.Entry
 }
 
-func NewUserController(service ports.UserService) *UserController {
-    return &UserController{UserService: service}
+func NewUserController(service ports.UserService, ctx context.Context) *UserController {
+    return &UserController{UserService: service, logger: logger.InitiateLogger(ctx)}
 }
 
 func GetPayload(request *http.Request, result interface{}) {
@@ -102,14 +107,22 @@ func (controller *UserController) Delete(writer http.ResponseWriter, request *ht
     WriteResponse(writer, &response, http.StatusOK)
 }
 
-func (controller *UserController) FindById(writer http.ResponseWriter, request *http.Request) {
+func (c *UserController) FindById(writer http.ResponseWriter, request *http.Request) {
     userId := request.PathValue("userId")
 
-    user, err := controller.UserService.FindById(request.Context(), userId)
+    user, err := c.UserService.FindById(request.Context(), userId)
 
     if err != nil {
-        fmt.Println("Error Find by id controller")
-        panic(err)
+        //fmt.Println("Error Find by id controller")
+        //log.Info()
+        c.logger.Info("Error find by id controller: ", err)
+        WriteResponse(writer, WebResponse{
+            Message: "Failed get user id",
+            Status: 0,
+            Data: nil,
+        }, http.StatusNotFound)
+        return
+        //panic(err)
     }
 
     response := WebResponse{

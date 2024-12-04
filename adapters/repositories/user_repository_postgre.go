@@ -6,16 +6,24 @@ import (
 	"fmt"
 	"log"
 	"meeting_service/domain/entities"
+	"meeting_service/pkg/logger"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 )
+
+
 
 type UserRepositoryPostgre struct {
 	db *sql.DB
+    logger *logrus.Entry
 }
 
-func NewUserRepositoryPostgre(db *sql.DB) (*UserRepositoryPostgre, error) {
+func NewUserRepositoryPostgre(db *sql.DB, ctx context.Context) (*UserRepositoryPostgre, error) {
 	return &UserRepositoryPostgre{
 		db: db,
+        logger: logger.InitiateLogger(ctx),
 	}, nil
 }
 
@@ -59,12 +67,16 @@ func (repository *UserRepositoryPostgre) Delete(ctx context.Context, id string) 
 	return nil
 }
 
-func (repository *UserRepositoryPostgre) FindById(ctx context.Context, id string) (*entities.User, error) {
+func (r *UserRepositoryPostgre) FindById(ctx context.Context, id string) (*entities.User, error) {
+    if _, err := uuid.Parse(id); err != nil {
+        //r.logger.Info("Invalid UUID Format: ", id)
+        return nil, fmt.Errorf("Invalid UUID Format")
+    }
 	user := &entities.User{}
 
 	query := "SELECT id, email, created_at FROM users WHERE id = $1"
 
-	err := repository.db.QueryRow(query, id).Scan(&user.Id, &user.Email, &user.Created_at)
+	err := r.db.QueryRow(query, id).Scan(&user.Id, &user.Email, &user.Created_at)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
