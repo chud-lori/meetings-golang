@@ -1,12 +1,10 @@
 package controllers
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"meeting_service/adapters/transport"
 	"meeting_service/domain/ports"
-	"meeting_service/pkg/logger"
 	"net/http"
 
 	"github.com/sirupsen/logrus"
@@ -14,11 +12,10 @@ import (
 
 type UserController struct {
     ports.UserService
-    logger *logrus.Entry
 }
 
-func NewUserController(service ports.UserService, ctx context.Context) *UserController {
-    return &UserController{UserService: service, logger: logger.InitiateLogger(ctx)}
+func NewUserController(service ports.UserService) *UserController {
+    return &UserController{UserService: service}
 }
 
 func GetPayload(request *http.Request, result interface{}) {
@@ -107,22 +104,21 @@ func (controller *UserController) Delete(writer http.ResponseWriter, request *ht
     WriteResponse(writer, &response, http.StatusOK)
 }
 
-func (c *UserController) FindById(writer http.ResponseWriter, request *http.Request) {
-    userId := request.PathValue("userId")
+func (c *UserController) FindById(w http.ResponseWriter, r *http.Request) {
+    userId := r.PathValue("userId")
 
-    user, err := c.UserService.FindById(request.Context(), userId)
+    user, err := c.UserService.FindById(r.Context(), userId)
 
     if err != nil {
-        //fmt.Println("Error Find by id controller")
-        //log.Info()
-        c.logger.Info("Error find by id controller: ", err)
-        WriteResponse(writer, WebResponse{
+        logger, _ := r.Context().Value("logger").(*logrus.Entry)
+        logger.Info("Error find by id controller: ", err)
+
+        WriteResponse(w, WebResponse{
             Message: "Failed get user id",
             Status: 0,
             Data: nil,
         }, http.StatusNotFound)
         return
-        //panic(err)
     }
 
     response := WebResponse{
@@ -131,14 +127,16 @@ func (c *UserController) FindById(writer http.ResponseWriter, request *http.Requ
         Data: &user,
     }
 
-    WriteResponse(writer, &response, http.StatusOK)
+    WriteResponse(w, &response, http.StatusOK)
 }
 
-func (controller *UserController) FindAll(writer http.ResponseWriter, request *http.Request) {
-    users, err := controller.UserService.FindAll(request.Context())
+func (controller *UserController) FindAll(w http.ResponseWriter, r *http.Request) {
+    logger, _ := r.Context().Value("logger").(*logrus.Entry)
+
+    users, err := controller.UserService.FindAll(r.Context())
 
     if err != nil {
-        fmt.Println("Error Find by id controller")
+        logger.Info("Error Find All user: ", err)
         panic(err)
     }
 
@@ -148,6 +146,6 @@ func (controller *UserController) FindAll(writer http.ResponseWriter, request *h
         Data: users,
     }
 
-    WriteResponse(writer, &response, http.StatusOK)
+    WriteResponse(w, &response, http.StatusOK)
 }
 

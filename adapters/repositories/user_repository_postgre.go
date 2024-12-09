@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"meeting_service/domain/entities"
-	"meeting_service/pkg/logger"
 	"time"
 
 	"github.com/google/uuid"
@@ -20,10 +19,9 @@ type UserRepositoryPostgre struct {
     logger *logrus.Entry
 }
 
-func NewUserRepositoryPostgre(db *sql.DB, ctx context.Context) (*UserRepositoryPostgre, error) {
+func NewUserRepositoryPostgre(db *sql.DB) (*UserRepositoryPostgre, error) {
 	return &UserRepositoryPostgre{
 		db: db,
-        logger: logger.InitiateLogger(ctx),
 	}, nil
 }
 

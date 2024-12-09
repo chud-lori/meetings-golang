@@ -2,7 +2,6 @@ package main
 
 import (
 	//"context"
-	"context"
 	"fmt"
 	"os"
 
@@ -16,7 +15,6 @@ import (
 	"meeting_service/pkg/logger"
 	"net/http"
 
-	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 )
 
@@ -27,8 +25,8 @@ func APIKeyMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		apiKey := r.Header.Get("x-api-key")
 		if apiKey != "secret-api-key" {
-            log := logger.InitiateLogger(r.Context())
-			log.Warn("unahothrized bruh")
+            //logger, _ := r.Context().Value("logger").(*logrus.Entry)
+            //logger.Warn("Unauth bnruhhh")
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -37,9 +35,6 @@ func APIKeyMiddleware(next http.Handler) http.Handler {
 }
 
 func main() {
-
-    ctx := context.WithValue(context.Background(), "RequestID", uuid.New().String())
-    logger.Init(ctx)
 
     err := godotenv.Load()
     if err != nil {
@@ -50,9 +45,9 @@ func main() {
 	defer postgredb.Close()
 
 
-	userRepository, _ := repositories.NewUserRepositoryPostgre(postgredb, ctx)
-	userService := services.NewUserService(userRepository, ctx)
-	userController := controllers.NewUserController(userService, ctx)
+	userRepository, _ := repositories.NewUserRepositoryPostgre(postgredb)
+	userService := services.NewUserService(userRepository)
+	userController := controllers.NewUserController(userService)
 
 	userEngageService := services.NewUserEngageService(userRepository, userRepository)
 	userEngageController := controllers.NewUserEngageController(userEngageService)
@@ -63,7 +58,7 @@ func main() {
 	web.UserEngageRouter(userEngageController, router)
 
 	var handler http.Handler = router
-    handler = logger.LogTrafficMiddleware(handler, ctx)
+    handler = logger.LogTrafficMiddleware(handler)
 	handler = APIKeyMiddleware(handler)
 
 	server := http.Server{
@@ -71,7 +66,7 @@ func main() {
 		Handler: handler,
 	}
 
-	logger.Log.Info("App running on port ", os.Getenv("APP_PORT"))
+    fmt.Println("App running on port ", os.Getenv("APP_PORT"))
 
 	err = server.ListenAndServe()
 	if err != nil {

@@ -8,7 +8,6 @@ import (
 	"meeting_service/domain/entities"
 	"meeting_service/domain/ports"
 	"meeting_service/grpc_service"
-	"meeting_service/pkg/logger"
 	"strconv"
 	"strings"
 	"time"
@@ -22,10 +21,9 @@ type UserServiceImpl struct {
 }
 
 // provider or constructor
-func NewUserService(userRepository ports.UserRepository, ctx context.Context) *UserServiceImpl {
+func NewUserService(userRepository ports.UserRepository) *UserServiceImpl {
 	return &UserServiceImpl{
 		UserRepository: userRepository,
-        logger: logger.InitiateLogger(ctx),
 	}
 }
 
