@@ -3,6 +3,7 @@ package logger
 import (
 	"context"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/google/uuid"
@@ -49,6 +50,9 @@ func LogTrafficMiddleware(next http.Handler) http.Handler {
 
         baseLogger := logrus.New()
         baseLogger.SetFormatter(&logrus.JSONFormatter{})
+        baseLogger.SetLevel(logrus.InfoLevel)
+        // make it appear in stdout not stderr which the default
+        baseLogger.SetOutput(os.Stdout)
 
         logger := baseLogger.WithField("RequestID", requestID)
 

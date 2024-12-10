@@ -3,10 +3,10 @@ package infrastructure
 import (
 	"database/sql"
 	"fmt"
+	"os"
 	"time"
-    "os"
 
-    _ "github.com/lib/pq"
+	_ "github.com/lib/pq"
 )
 
 func NewPostgreDB() *sql.DB {

@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
 )
 
 type UserController struct {
@@ -105,6 +106,10 @@ func (controller *UserController) Delete(writer http.ResponseWriter, request *ht
 }
 
 func (c *UserController) FindById(w http.ResponseWriter, r *http.Request) {
+
+    _, span := otel.Tracer("example-tracer").Start(r.Context(), "example-span")
+    defer span.End()
+
     userId := r.PathValue("userId")
 
     user, err := c.UserService.FindById(r.Context(), userId)

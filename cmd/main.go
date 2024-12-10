@@ -2,10 +2,16 @@ package main
 
 import (
 	//"context"
+	"context"
+	"errors"
 	"fmt"
+	"log"
+	"net"
 	"os"
+	"os/signal"
 
-	//"log"
+	//"os"
+
 	//"math/rand"
 	"meeting_service/adapters/controllers"
 	"meeting_service/adapters/repositories"
@@ -16,6 +22,7 @@ import (
 	"net/http"
 
 	"github.com/joho/godotenv"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 //type Middleware func(http.HandlerFunc) http.HandlerFunc
@@ -35,15 +42,29 @@ func APIKeyMiddleware(next http.Handler) http.Handler {
 }
 
 func main() {
-
     err := godotenv.Load()
     if err != nil {
-        logger.Log.Fatal("Failed load keys")
+        log.Println("Failed load keys")
+        return
     }
+
+    // Handle SIGINT
+    ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+    defer stop()
+
+    otelShutdown, err := infrastructure.SetupOTelSDK(ctx)
+    if err != nil {
+        log.Println("Failed otel")
+        return
+    }
+
+    // handle shutdown properly avoid leaking
+    defer func() {
+        err = errors.Join(err, otelShutdown(context.Background()))
+    }()
 
 	postgredb := infrastructure.NewPostgreDB()
 	defer postgredb.Close()
-
 
 	userRepository, _ := repositories.NewUserRepositoryPostgre(postgredb)
 	userService := services.NewUserService(userRepository)
@@ -57,20 +78,43 @@ func main() {
 	web.UserRouter(userController, router)
 	web.UserEngageRouter(userEngageController, router)
 
-	var handler http.Handler = router
+    httpSpanName := func(operation string, r *http.Request) string {
+        return fmt.Sprintf("HTTP %s %s", r.Method, r.URL.Path)
+    }
+
+    var handler = otelhttp.NewHandler(
+        router,
+        "/",
+        otelhttp.WithSpanNameFormatter(httpSpanName))
+
     handler = logger.LogTrafficMiddleware(handler)
 	handler = APIKeyMiddleware(handler)
 
 	server := http.Server{
 		Addr:    fmt.Sprintf(":%s", os.Getenv("APP_PORT")),
+        BaseContext:  func(_ net.Listener) context.Context { return ctx },
 		Handler: handler,
 	}
 
-    fmt.Println("App running on port ", os.Getenv("APP_PORT"))
+    srvErr := make(chan error, 1)
+    go func() {
+        log.Println("App running on port ", os.Getenv("APP_PORT"))
+        srvErr <- server.ListenAndServe()
+    }()
 
-	err = server.ListenAndServe()
-	if err != nil {
-		panic(err)
-	}
+    // Wait interuption
+    select {
+    case err = <-srvErr:
+        // error start server
+        return
+    case <-ctx.Done():
+        // wait first ctrl c
+        // stop receive signal notif asap
+        stop()
+    }
+
+    err = server.Shutdown(context.Background())
+    return
+
 }
 
