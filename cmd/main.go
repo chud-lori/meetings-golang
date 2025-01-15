@@ -1,7 +1,6 @@
 package main
 
 import (
-	//"context"
 	"context"
 	"errors"
 	"fmt"
@@ -10,11 +9,9 @@ import (
 	"os"
 	"os/signal"
 
-	//"os"
-
-	//"math/rand"
 	"meeting_service/adapters/controllers"
 	"meeting_service/adapters/repositories"
+	"meeting_service/adapters/utils"
 	"meeting_service/adapters/web"
 	"meeting_service/domain/services"
 	"meeting_service/infrastructure"
@@ -27,19 +24,18 @@ import (
 
 //type Middleware func(http.HandlerFunc) http.HandlerFunc
 
-
-func APIKeyMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		apiKey := r.Header.Get("x-api-key")
-		if apiKey != "secret-api-key" {
-            //logger, _ := r.Context().Value("logger").(*logrus.Entry)
-            //logger.Warn("Unauth bnruhhh")
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
+//func APIKeyMiddleware(next http.Handler) http.Handler {
+//	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+//		apiKey := r.Header.Get("x-api-key")
+//		if apiKey != "secret-api-key" {
+//            //logger, _ := r.Context().Value("logger").(*logrus.Entry)
+//            //logger.Warn("Unauth bnruhhh")
+//			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+//			return
+//		}
+//		next.ServeHTTP(w, r)
+//	})
+//}
 
 func main() {
     err := godotenv.Load()
@@ -52,11 +48,13 @@ func main() {
     ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
     defer stop()
 
-    otelShutdown, err := infrastructure.SetupOTelSDK(ctx)
+    _, otelShutdown, err := infrastructure.SetupOTelSDK(ctx)
     if err != nil {
         log.Println("Failed otel")
         return
     }
+
+    //tracer := tp.Tracer("my-app")
 
     // handle shutdown properly avoid leaking
     defer func() {
@@ -88,7 +86,8 @@ func main() {
         otelhttp.WithSpanNameFormatter(httpSpanName))
 
     handler = logger.LogTrafficMiddleware(handler)
-	handler = APIKeyMiddleware(handler)
+    handler = infrastructure.TraceMiddleware(handler)
+	handler = utils.APIKeyMiddleware(handler)
 
 	server := http.Server{
 		Addr:    fmt.Sprintf(":%s", os.Getenv("APP_PORT")),

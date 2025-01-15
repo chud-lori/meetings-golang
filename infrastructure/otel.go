@@ -4,23 +4,28 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	logku "log"
 	"time"
-    logku "log"
+
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+
+	//"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/exporters/stdout/stdoutlog"
 	"go.opentelemetry.io/otel/exporters/stdout/stdoutmetric"
 	"go.opentelemetry.io/otel/log/global"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/log"
 	"go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
 	//semconv "go.opentelemetry.io/otel/semconv/v1.12.0"
 )
 
 // setupOTelSDK bootstraps the OpenTelemetry pipeline.
 // If it does not return an error, make sure to call shutdown for proper cleanup.
-func SetupOTelSDK(ctx context.Context) (shutdown func(context.Context) error, err error) {
+func SetupOTelSDK(ctx context.Context) (trace *trace.TracerProvider, shutdown func(context.Context) error, err error) {
 	var shutdownFuncs []func(context.Context) error
 
 	// shutdown calls cleanup functions registered via shutdownFuncs.
@@ -72,7 +77,7 @@ func SetupOTelSDK(ctx context.Context) (shutdown func(context.Context) error, er
 	shutdownFuncs = append(shutdownFuncs, loggerProvider.Shutdown)
 	global.SetLoggerProvider(loggerProvider)
 
-	return
+	return tracerProvider, shutdown, nil
 }
 
 func newPropagator() propagation.TextMapPropagator {
@@ -101,26 +106,49 @@ func newTraceProvider(ctx context.Context) (*trace.TracerProvider, error) {
     //        semconv.ServiceNameKey.String("meetings_service"),
     //    ))
 
-	//traceProvider := trace.NewTracerProvider(
-    //    trace.WithBatcher(traceExporter),
-	//	//trace.WithBatcher(traceExporter,
-	//	//    // Default is 5s. Set to 1s for demonstrative purposes.
-	//    //    trace.WithBatchTimeout(time.Second)),
-    //    trace.WithResource(res),
-	//)
+        //traceProvider := trace.NewTracerProvider(
+        //    trace.WithBatcher(traceExporter),
+        //	//trace.WithBatcher(traceExporter,
+        //	//    // Default is 5s. Set to 1s for demonstrative purposes.
+        //    //    trace.WithBatchTimeout(time.Second)),
+        //    trace.WithResource(res),
+        //)
 
     // BASE
     //traceExporter, err := stdouttrace.New(
     //    stdouttrace.WithPrettyPrint())
-    traceExporter, err := otlptracehttp.New(ctx, otlptracehttp.WithEndpoint("localhost:4318"))
+    //traceExporter, err := otlptracehttp.New(
+    //    ctx,
+    //    otlptracehttp.WithEndpoint("otel-collector:4318"),
+    //    otlptracehttp.WithInsecure(),
+    //    //otlptracehttp.WithURLPath("/v1/traces"),
+    //)
+    traceExporter, err := otlptracegrpc.New(
+        ctx,
+        otlptracegrpc.WithEndpoint("otel-collector:4317"),
+        otlptracegrpc.WithInsecure(),
+    )
+
     if err != nil {
         logku.Printf("Error creating trace exporter: %v", err)
         return nil, err
     }
-    traceProvider := trace.NewTracerProvider(
-        trace.WithBatcher(traceExporter,
-            trace.WithBatchTimeout(time.Second)),
-        )
+
+    resource, err := resource.New(
+        context.Background(),  // Context is needed here
+        resource.WithAttributes(
+            attribute.String("service.name", "meetings-app"),  // Correct service name
+        ),
+    )
+    if err != nil {
+        logku.Printf("Error creating trace exporter: %v", err)
+    }
+
+traceProvider := trace.NewTracerProvider(
+    trace.WithBatcher(traceExporter,
+        trace.WithBatchTimeout(time.Second)),
+    trace.WithResource(resource),
+)
 	return traceProvider, nil
 }
 

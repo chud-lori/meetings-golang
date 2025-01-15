@@ -8,11 +8,13 @@ import (
 	"meeting_service/domain/entities"
 	"meeting_service/domain/ports"
 	"meeting_service/grpc_service"
+	"meeting_service/infrastructure"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type UserServiceImpl struct {
@@ -129,6 +131,9 @@ func (s *UserServiceImpl) FindById(ctx context.Context, id string) (*transport.U
 }
 
 func (service *UserServiceImpl) FindAll(ctx context.Context) ([]*transport.UserResponse, error) {
+    ctx, endSpan := infrastructure.TraceFunction(ctx, "FindAllService",
+        attribute.String("functionNAMA", "FindALLService"),
+        )
 
 	users_result, err := service.UserRepository.FindAll(ctx)
 
@@ -147,6 +152,7 @@ func (service *UserServiceImpl) FindAll(ctx context.Context) ([]*transport.UserR
 		}
 	}
 
+    endSpan()
 	return users_response, nil
 }
 

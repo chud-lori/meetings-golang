@@ -5,22 +5,28 @@ receivers:
         endpoint: 0.0.0.0:4317
       http:
         endpoint: 0.0.0.0:4318
+        max_request_body_size: 4_194_304
 
 processors:
   batch:
     send_batch_size: 512
     send_batch_max_size: 1024
+    timeout: 10s
 
 exporters:
   jaeger:
-    endpoint: "http://host.docker.internal:14268"
+    endpoint: "jaeger:14250"
     tls:
       insecure: true
-
 service:
   pipelines:
     traces:
       receivers: [otlp]
       processors: [batch]
       exporters: [jaeger]
+  telemetry:
+    logs:
+      level: "debug"
+    metrics:
+      level: "detailed"
 

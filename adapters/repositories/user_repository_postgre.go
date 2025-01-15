@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"log"
 	"meeting_service/domain/entities"
+	"meeting_service/infrastructure"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 
@@ -88,7 +90,12 @@ func (r *UserRepositoryPostgre) FindById(ctx context.Context, id string) (*entit
 }
 
 func (repository *UserRepositoryPostgre) FindAll(ctx context.Context) ([]*entities.User, error) {
-	query := "SELECT id, email, created_at FROM users"
+    query := "SELECT id, email, created_at FROM users"
+
+    ctx, endSpan := infrastructure.TraceFunction(ctx, "query-exec",
+        attribute.String("db.operation", "select"),
+        attribute.String("db.query", query),
+    )
 
 	rows, err := repository.db.QueryContext(ctx, query)
 
@@ -111,6 +118,7 @@ func (repository *UserRepositoryPostgre) FindAll(ctx context.Context) ([]*entiti
 	if err = rows.Err(); err != nil {
 		return nil, err
 	}
+    endSpan()
 
 	return users, nil
 }

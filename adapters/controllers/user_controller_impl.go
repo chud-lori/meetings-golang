@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"meeting_service/adapters/transport"
 	"meeting_service/domain/ports"
+	"meeting_service/infrastructure"
 	"net/http"
 
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type UserController struct {
@@ -138,7 +140,11 @@ func (c *UserController) FindById(w http.ResponseWriter, r *http.Request) {
 func (controller *UserController) FindAll(w http.ResponseWriter, r *http.Request) {
     logger, _ := r.Context().Value("logger").(*logrus.Entry)
 
-    users, err := controller.UserService.FindAll(r.Context())
+    ctx, endSpan := infrastructure.TraceFunction(r.Context(), "FindAllHandler",
+        attribute.String("functionNAMA", "FindAll"),
+    )
+
+    users, err := controller.UserService.FindAll(ctx)
 
     if err != nil {
         logger.Info("Error Find All user: ", err)
@@ -150,7 +156,7 @@ func (controller *UserController) FindAll(w http.ResponseWriter, r *http.Request
         Status: 1,
         Data: users,
     }
-
+    endSpan()
     WriteResponse(w, &response, http.StatusOK)
 }
 

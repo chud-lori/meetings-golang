@@ -1,7 +1,8 @@
 version: '3.4'
 
 networks:
-  app:
+  jub_dup:
+    external: true
 
 services:
   meetings-app:
@@ -15,7 +16,7 @@ services:
     volumes:
       - ./.env:/app/.env
     networks:
-      - app
+      - jub_dup
 
   grafana:
     image: grafana/grafana:latest
@@ -28,7 +29,7 @@ services:
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
       - GF_AUTH_DISABLE_LOGIN_FORM=true
     networks:
-      - app
+      - jub_dup
 
   loki:
     image: grafana/loki:3.2.1
@@ -36,7 +37,7 @@ services:
       - 3100:3100
     command: -config.file=/etc/loki/local-config.yaml
     networks:
-      - app
+      - jub_dup
 
   promtail:
     image:  grafana/promtail:3.2.1
@@ -49,5 +50,5 @@ services:
     depends_on:
       - loki
     networks:
-      - app
+      - jub_dup
 
