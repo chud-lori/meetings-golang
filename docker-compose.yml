@@ -6,7 +6,7 @@ networks:
 
 services:
   meetings-app:
-    container_name: meetings_service
+    container_name: meetings-app
     build: .
     labels:
       logging: "promtail"
@@ -18,7 +18,8 @@ services:
     networks:
       - jub_dup
 
-  grafana:
+  meetings-grafana:
+    container_name: meetings-grafana
     image: grafana/grafana:latest
     ports:
       - 3000:3000
@@ -31,7 +32,8 @@ services:
     networks:
       - jub_dup
 
-  loki:
+  meetings-loki:
+    container_name: meetings-loki
     image: grafana/loki:3.2.1
     ports:
       - 3100:3100
@@ -39,16 +41,16 @@ services:
     networks:
       - jub_dup
 
-  promtail:
+  meetings-promtail:
     image:  grafana/promtail:3.2.1
-    container_name: promtail
+    container_name: meetings-promtail
     volumes:
       - ./promtail.yaml:/etc/promtail/docker-config.yaml
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock
     command: -config.file=/etc/promtail/docker-config.yaml
     depends_on:
-      - loki
+      - meetings-loki
     networks:
       - jub_dup
 
