@@ -13,6 +13,7 @@ services:
       logging_jobname: "containerlogs"
     ports:
       - 1234:1234
+      - 8080:8080
     volumes:
       - ./.env:/app/.env
     networks:
@@ -51,6 +52,58 @@ services:
     command: -config.file=/etc/promtail/docker-config.yaml
     depends_on:
       - meetings-loki
+    networks:
+      - jub_dup
+
+  meetings-prometheus:
+    image: prom/prometheus:v2.43.0
+    container_name: meetings-prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - 9090:9090
+    networks:
+      - jub_dup
+    depends_on:
+      - meetings-app
+      - node-exporter
+
+  node-exporter:
+    image: prom/node-exporter:v1.5.0
+    container_name: node-exporter
+    ports:
+      - 9100:9100
+    networks:
+      - jub_dup
+
+  meetings-otel-collector:
+    image: otel/opentelemetry-collector:latest
+    container_name: meetings-otel-collector
+    ports:
+      - 4317:4317
+      - 4318:4318
+    volumes:
+      - ./otel-config.yaml:/etc/otel-collector-config.yaml
+    command:
+      - "--config=/etc/otel-collector-config.yaml"
+    networks:
+      - jub_dup
+
+  meetings-jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: meetings-jaeger
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+      COLLECTOR_ZIPKIN_HOST_PORT: ":9411"
+    ports:
+      - 5775:5775/udp
+      - 6831:6831/udp
+      - 6832:6832/udp
+      - 5778:5778
+      - 16686:16686
+      - 14268:14268
+      - 14250:14250
+      - 9411:9411
     networks:
       - jub_dup
 

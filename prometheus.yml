@@ -1,0 +1,14 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  # Scrape Go application metrics
+  - job_name: 'meetings-app-scrape'
+    static_configs:
+      - targets: ['meetings-app:8080']  # Replace with your actual app container and port
+
+  # Scrape server metrics from Node Exporter
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']  # Node exporter container for server metrics
+

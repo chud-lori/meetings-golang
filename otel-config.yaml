@@ -15,7 +15,7 @@ processors:
 
 exporters:
   jaeger:
-    endpoint: "jaeger:14250"
+    endpoint: "meetings-jaeger:14250"
     tls:
       insecure: true
 service:

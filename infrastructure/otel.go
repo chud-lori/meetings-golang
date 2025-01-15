@@ -5,19 +5,24 @@ import (
 	"errors"
 	"fmt"
 	logku "log"
+	"net/http"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/otel"
 
 	//"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/exporters/prometheus"
 	"go.opentelemetry.io/otel/exporters/stdout/stdoutlog"
-	"go.opentelemetry.io/otel/exporters/stdout/stdoutmetric"
+
+	//"go.opentelemetry.io/otel/exporters/stdout/stdoutmetric"
 	"go.opentelemetry.io/otel/log/global"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/log"
 	"go.opentelemetry.io/otel/sdk/metric"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
 	//semconv "go.opentelemetry.io/otel/semconv/v1.12.0"
@@ -88,44 +93,9 @@ func newPropagator() propagation.TextMapPropagator {
 }
 
 func newTraceProvider(ctx context.Context) (*trace.TracerProvider, error) {
-    // Jaeger endpoint
-    //jaegerEndpoint := "http://localhost:4318/api/traces"
-    //if endpoint := os.Getenv("JAEGER_ENDPOINT"); endpoint != "" {
-	//	jaegerEndpoint = endpoint
-	//}
-
-    // Set up OLTP trace exporter
-    //traceExporter, err := otlptracehttp.New(ctx, otlptracehttp.WithEndpoint(jaegerEndpoint), otlptracehttp.WithInsecure())
-    //if err != nil {
-    //    fmt.Println("Failed initiate tracer: ", err)
-    //    return nil, err
-    //}
-
-    //res, err := resource.New(ctx,
-    //    resource.WithAttributes(
-    //        semconv.ServiceNameKey.String("meetings_service"),
-    //    ))
-
-        //traceProvider := trace.NewTracerProvider(
-        //    trace.WithBatcher(traceExporter),
-        //	//trace.WithBatcher(traceExporter,
-        //	//    // Default is 5s. Set to 1s for demonstrative purposes.
-        //    //    trace.WithBatchTimeout(time.Second)),
-        //    trace.WithResource(res),
-        //)
-
-    // BASE
-    //traceExporter, err := stdouttrace.New(
-    //    stdouttrace.WithPrettyPrint())
-    //traceExporter, err := otlptracehttp.New(
-    //    ctx,
-    //    otlptracehttp.WithEndpoint("otel-collector:4318"),
-    //    otlptracehttp.WithInsecure(),
-    //    //otlptracehttp.WithURLPath("/v1/traces"),
-    //)
     traceExporter, err := otlptracegrpc.New(
         ctx,
-        otlptracegrpc.WithEndpoint("otel-collector:4317"),
+        otlptracegrpc.WithEndpoint("meetings-otel-collector:4317"),
         otlptracegrpc.WithInsecure(),
     )
 
@@ -144,28 +114,54 @@ func newTraceProvider(ctx context.Context) (*trace.TracerProvider, error) {
         logku.Printf("Error creating trace exporter: %v", err)
     }
 
-traceProvider := trace.NewTracerProvider(
-    trace.WithBatcher(traceExporter,
-        trace.WithBatchTimeout(time.Second)),
-    trace.WithResource(resource),
-)
+    traceProvider := trace.NewTracerProvider(
+        trace.WithBatcher(traceExporter,
+            trace.WithBatchTimeout(time.Second)),
+        trace.WithResource(resource),
+    )
 	return traceProvider, nil
 }
 
+//func newMeterProvider() (*metric.MeterProvider, error) {
+//    exporter, err := prometheus.New()
+//
+//	//metricExporter, err := stdoutmetric.New()
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	meterProvider := metric.NewMeterProvider(
+//		metric.WithReader(metric.NewPeriodicReader(exporter,
+//			// Default is 1m. Set to 3s for demonstrative purposes.
+//			metric.WithInterval(3*time.Second))),
+//	)
+//    // Expose the Prometheus metrics via HTTP server
+//	go func() {
+//		http.Handle("/metrics", exporter) // Expose /metrics for Prometheus
+//		logku.Fatal(http.ListenAndServe(":8080", nil)) // Start server for metrics
+//	}()
+//	return meterProvider, nil
+//}
 func newMeterProvider() (*metric.MeterProvider, error) {
-	metricExporter, err := stdoutmetric.New()
-	if err != nil {
-		return nil, err
-	}
+    // Create a new Prometheus exporter
+    exporter, err := prometheus.New()
+    if err != nil {
+        return nil, err
+    }
+    // Create a new MeterProvider with the Prometheus exporter
+    meterProvider := sdkmetric.NewMeterProvider(
+        sdkmetric.WithReader(exporter),
+    )
+    // Expose the Prometheus metrics via HTTP server
+    go func() {
+        http.Handle("/metrics", promhttp.Handler())
+        if err := http.ListenAndServe(":8080", nil); err != nil {
+            panic(err)
+        }
+    }()
 
-	meterProvider := metric.NewMeterProvider(
-		metric.WithReader(metric.NewPeriodicReader(metricExporter,
-			// Default is 1m. Set to 3s for demonstrative purposes.
-			metric.WithInterval(3*time.Second))),
-	)
-	return meterProvider, nil
+    return meterProvider, nil
 }
-
 func newLoggerProvider() (*log.LoggerProvider, error) {
 	logExporter, err := stdoutlog.New()
 	if err != nil {
